@@ -84,6 +84,20 @@ func (a *App) executeFFmpeg(args []string) error {
 	return cmd.Wait()
 }
 
+// SelectFile opens a file dialog and returns the selected path
+func (a *App) SelectFile() string {
+	selection, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select Video",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Video Files", Pattern: "*.mp4;*.mov;*.avi;*.mkv"},
+		},
+	})
+	if err != nil {
+		return ""
+	}
+	return selection
+}
+
 // getOutputPath returns a timestamped path in the output directory
 func (a *App) getOutputPath(prefix string) string {
 	cwd, _ := os.Getwd()
