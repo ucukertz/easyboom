@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -81,4 +82,57 @@ func (a *App) executeFFmpeg(args []string) error {
 	}
 
 	return cmd.Wait()
+}
+
+// getOutputPath returns a timestamped path in the output directory
+func (a *App) getOutputPath(prefix string) string {
+	cwd, _ := os.Getwd()
+	outputDir := filepath.Join(cwd, "output")
+	_ = os.MkdirAll(outputDir, 0755)
+	timestamp := time.Now().Format("20060102_150405")
+	return filepath.Join(outputDir, fmt.Sprintf("%s_%s.mp4", prefix, timestamp))
+}
+
+// ProcessJoin concatenates two videos
+func (a *App) ProcessJoin(input1, input2 string) (string, error) {
+	output := a.getOutputPath("join")
+	// Use concat filter
+	args := []string{
+		"-i", input1,
+		"-i", input2,
+		"-filter_complex", "[0:v][0:a][1:v][1:a]concat=n=2:v=1:a=1[v][a]",
+		"-map", "[v]",
+		"-map", "[a]",
+		"-y", output,
+	}
+	err := a.executeFFmpeg(args)
+	return output, err
+}
+
+// ProcessCut trims a video
+func (a *App) ProcessCut(input, start, end string) (string, error) {
+	output := a.getOutputPath("cut")
+	args := []string{
+		"-i", input,
+		"-ss", start,
+		"-to", end,
+		"-c", "copy",
+		"-y", output,
+	}
+	err := a.executeFFmpeg(args)
+	return output, err
+}
+
+// ProcessBoomerang creates a forward-backward loop
+func (a *App) ProcessBoomerang(input string) (string, error) {
+	output := a.getOutputPath("boomerang")
+	// For a simple boomerang: [0:v]reverse[r];[0:v][r]concat=n=2:v=1[v]
+	args := []string{
+		"-i", input,
+		"-filter_complex", "[0:v]reverse[r];[0:v][r]concat=n=2:v=1[v]",
+		"-map", "[v]",
+		"-y", output,
+	}
+	err := a.executeFFmpeg(args)
+	return output, err
 }
