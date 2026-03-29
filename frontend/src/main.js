@@ -223,7 +223,7 @@ function renderTabInputs() {
       }
       return `
         <div class="dropzone" ondrop="window.handleDrop(event, '${target}')" ondragover="window.handleDragOver(event)" onclick="window.pickFile('${target}')">
-          <span class="dropzone-icon">🖼️</span>
+          <span class="dropzone-icon">+</span>
           <span style="color: var(--text-muted); font-size: 0.7rem;">Slot ${index + 1}</span>
         </div>
       `;
@@ -234,21 +234,21 @@ function renderTabInputs() {
     return `
       ${state.video1.path ? window.renderVideoPlayer(state.video1.path, state.video1.name, 'input', 'video1') : `
         <div class="dropzone" ondrop="window.handleDrop(event, 'video1')" ondragover="window.handleDragOver(event)" onclick="window.pickFile('video1')">
-          <span class="dropzone-icon">1️⃣</span>
+          <span class="dropzone-icon">1</span>
           <span style="color: var(--accent); font-weight: 700;">${file1Name}</span>
         </div>
       `}
       ${state.video2.path ? window.renderVideoPlayer(state.video2.path, state.video2.name, 'input', 'video2') : `
         <div class="dropzone" ondrop="window.handleDrop(event, 'video2')" ondragover="window.handleDragOver(event)" onclick="window.pickFile('video2')">
-          <span class="dropzone-icon">2️⃣</span>
+          <span class="dropzone-icon">2</span>
           <span style="color: var(--accent); font-weight: 700;">${file2Name}</span>
         </div>
       `}
     `;
   }
 
-  const iconMap = { 'boomerang': '🪃', 'cut': '✂️', 'pace': '🏃' };
-  const icon = iconMap[state.activeTab] || '📁';
+  const iconMap = { 'boomerang': 'B', 'cut': 'C', 'pace': 'P' };
+  const icon = iconMap[state.activeTab] || '+';
   return `
     ${state.video1.path ?
       window.renderVideoPlayer(state.video1.path, state.video1.name, 'input', 'video1') : `
