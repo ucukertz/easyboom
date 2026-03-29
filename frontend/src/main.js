@@ -21,6 +21,7 @@ const state = {
   isDragging: false,
   excludeFrames: 0,
   compareMedia: Array(6).fill(null).map(() => ({ path: '', name: '' })),
+  videoStates: {}, // Keyed by target id, stores { currentTime, isPlaying }
 };
 
 window.framesToTime = (frames, fps) => {
@@ -98,7 +99,7 @@ window.renderVideoPlayer = (path, name, type = 'input', target = '') => {
   const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
   const mediaTag = isImage ? 
     `<img src="/preview/${path}" style="width: 100%; height: 100%; object-fit: contain;">` :
-    `<video src="/preview/${path}" controls autoplay loop onclick="event.stopPropagation()"></video>`;
+    `<video id="v-${target}" src="/preview/${path}" controls loop onclick="event.stopPropagation()"></video>`;
 
   return `
     <div class="${isResult ? 'result-box' : 'dropzone has-video'}" 
@@ -122,7 +123,32 @@ window.renderVideoPlayer = (path, name, type = 'input', target = '') => {
   `;
 };
 
+function captureVideoStates() {
+  document.querySelectorAll('video').forEach(v => {
+    if (v.id) {
+       state.videoStates[v.id] = {
+         currentTime: v.currentTime,
+         isPlaying: !v.paused
+       };
+    }
+  });
+}
+
+function restoreVideoStates() {
+  Object.keys(state.videoStates).forEach(id => {
+    const v = document.getElementById(id);
+    if (v) {
+      const saved = state.videoStates[id];
+      v.currentTime = saved.currentTime;
+      if (saved.isPlaying) {
+        v.play().catch(e => console.warn("Autoplay block or playback interrupted:", e));
+      }
+    }
+  });
+}
+
 function render() {
+  captureVideoStates();
   const app = document.querySelector('#app');
   app.innerHTML = `
     <header class="tabs">
@@ -152,6 +178,7 @@ function render() {
       </div>
     </main>
   `;
+  restoreVideoStates();
 }
 
 function renderTabInputs() {
@@ -359,6 +386,7 @@ window.switchTab = (tab) => {
   state.video2 = { path: '', name: '' };
   state.output = null;
   state.logs = ['> Switched to ' + tab.toUpperCase()];
+  state.videoStates = {}; // Full reset on tab switch
   render();
 };
 
@@ -380,6 +408,7 @@ window.pickFile = async (target) => {
 
 window.clearVideo = (e, target) => {
     e.stopPropagation();
+    delete state.videoStates[`v-${target}`]; // Clear state for this slot
     if (target.includes('compareMedia')) {
         const index = parseInt(target.match(/\[(\d+)\]/)[1]);
         state.compareMedia[index] = { path: '', name: '' };
