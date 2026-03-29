@@ -22,8 +22,9 @@ type App struct {
 
 // VideoMetadata stores essential stream info
 type VideoMetadata struct {
-	Frames int     `json:"frames"`
-	FPS    float64 `json:"fps"`
+	Frames   int     `json:"frames"`
+	FPS      float64 `json:"fps"`
+	Duration float64 `json:"duration"`
 }
 
 // NewApp creates a new App application struct
@@ -247,6 +248,68 @@ func (a *App) ProcessBoomerang(input string, exclude int) (string, error) {
 	return output, err
 }
 
+// ProcessPace changes the speed of a video and handles audio accordingly
+func (a *App) ProcessPace(input string, speed float64, audioMode string) (string, error) {
+	output := a.getOutputPath("pace")
+	
+	// Probe for duration to handle "repeat" mode correctly
+	meta, err := a.ProbeVideo(input)
+	if err != nil {
+		return "", err
+	}
+	
+	newDuration := meta.Duration / speed
+	
+	var filter string
+	if audioMode == "scale" {
+		// Video speed
+		vFilter := fmt.Sprintf("[0:v]setpts=(1/%.6f)*PTS[v]", speed)
+		
+		// Audio tempo (atempo only 0.5-2.0, so needs chaining)
+		aFilter := "[0:a]"
+		remaining := speed
+		for remaining < 0.5 {
+			aFilter += "atempo=0.5,"
+			remaining /= 0.5
+		}
+		for remaining > 2.0 {
+			aFilter += "atempo=2.0,"
+			remaining /= 2.0
+		}
+		aFilter += fmt.Sprintf("atempo=%.6f[a]", remaining)
+		
+		filter = vFilter + ";" + aFilter
+	} else {
+		// "repeat" mode: loop audio then trim to video duration
+		// We use -stream_loop -1 on input for audio in the command below instead of filter complex
+		filter = fmt.Sprintf("[0:v]setpts=(1/%.6f)*PTS[v]", speed)
+	}
+
+	args := []string{}
+	if audioMode == "repeat" {
+		args = []string{
+			"-i", input,
+			"-stream_loop", "-1", "-i", input,
+			"-filter_complex", filter,
+			"-map", "[v]",
+			"-map", "1:a",
+			"-t", fmt.Sprintf("%.6f", newDuration),
+			"-y", output,
+		}
+	} else {
+		args = []string{
+			"-i", input,
+			"-filter_complex", filter,
+			"-map", "[v]",
+			"-map", "[a]",
+			"-y", output,
+		}
+	}
+
+	err = a.executeFFmpeg(args)
+	return output, err
+}
+
 // ProbeVideo returns frame count and FPS for a given video
 func (a *App) ProbeVideo(path string) (VideoMetadata, error) {
 	args := []string{
@@ -295,11 +358,14 @@ func (a *App) ProbeVideo(path string) (VideoMetadata, error) {
 	}
 
 	frames, _ := strconv.Atoi(res.Streams[0].NbFrames)
+	dur, _ := strconv.ParseFloat(res.Streams[0].Duration, 64)
 	if frames == 0 {
-		// Fallback to duration * fps
-		dur, _ := strconv.ParseFloat(res.Streams[0].Duration, 64)
 		frames = int(dur * fps)
 	}
 	
-	return VideoMetadata{Frames: frames, FPS: fps}, nil
+	return VideoMetadata{
+		Frames:   frames,
+		FPS:      fps,
+		Duration: dur,
+	}, nil
 }

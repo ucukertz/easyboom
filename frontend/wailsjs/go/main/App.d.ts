@@ -14,6 +14,8 @@ export function ProcessCut(arg1:string,arg2:number,arg3:number):Promise<string>;
 
 export function ProcessJoin(arg1:string,arg2:string):Promise<string>;
 
+export function ProcessPace(arg1:string,arg2:number,arg3:string):Promise<string>;
+
 export function SaveFileAs(arg1:string):Promise<string>;
 
 export function SaveTemp(arg1:Array<number>,arg2:string):Promise<string>;
