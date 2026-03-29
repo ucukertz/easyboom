@@ -230,18 +230,39 @@ func (a *App) ProcessCut(input string, startFrame, endFrame int) (string, error)
 	return output, err
 }
 
-// ProcessBoomerang creates a forward-backward loop (1-2-2-1 visually, 1-2-1-2 audio)
-func (a *App) ProcessBoomerang(input string, exclude int) (string, error) {
+// ProcessBoomerang creates a forward-backward loop (1-2-2-1 visually and optionally 1-2-2-1 audio)
+func (a *App) ProcessBoomerang(input string, exclude int, boomerangAudio bool) (string, error) {
 	output := a.getOutputPath("boomerang")
 	
-	// Double-Reverse Trim: Start with reverse, trim start (original's end), then split and re-reverse
-	filter := fmt.Sprintf("[0:v]reverse,trim=start_frame=%d,setpts=PTS-STARTPTS,split[cr1][cr2];[cr1]reverse[clean_fwd];[clean_fwd][cr2]concat=n=2:v=1:a=0[v];[0:a][0:a]concat=n=2:v=0:a=1[a]", exclude)
+	var filter string
+	meta, _ := a.ProbeVideo(input)
 	
+	// We MUST ensure we have a valid frames/duration before building filters
+	if meta.Frames <= 0 { 
+		meta.Frames = 100 // Fallback
+	}
+
+	trimmedFrames := meta.Frames - exclude
+	if trimmedFrames < 1 { trimmedFrames = 1 }
+	
+	if boomerangAudio {
+		excludeSec := float64(exclude) / meta.FPS
+		durationSec := meta.Duration - excludeSec
+		if durationSec < 0 { durationSec = 0 }
+		
+		// V: Split -> Second half reverse -> Join
+		// A: Split -> Second half reverse -> Join
+		filter = fmt.Sprintf("[0:v]trim=end_frame=%d,setpts=PTS-STARTPTS,split[v1][v2];[v2]reverse,setpts=PTS-STARTPTS[v2r];[v1][v2r]concat=n=2:v=1:a=0[v];[0:a]atrim=end=%.6f,asetpts=PTS-STARTPTS,asplit[a1][a2];[a2]areverse,asetpts=PTS-STARTPTS[a2r];[a1][a2r]concat=n=2:v=0:a=1[a]", trimmedFrames, durationSec)
+	} else {
+		filter = fmt.Sprintf("[0:v]trim=end_frame=%d,setpts=PTS-STARTPTS,split[v1][v2];[v2]reverse,setpts=PTS-STARTPTS[v2r];[v1][v2r]concat=n=2:v=1:a=0[v];[0:a]asplit[a1][a2];[a1][a2]concat=n=2:v=0:a=1[a]", trimmedFrames)
+	}
+
 	args := []string{
 		"-i", input,
 		"-filter_complex", filter,
 		"-map", "[v]",
 		"-map", "[a]",
+		"-c:a", "aac",
 		"-y", output,
 	}
 	err := a.executeFFmpeg(args)

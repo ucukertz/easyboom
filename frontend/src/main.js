@@ -24,6 +24,7 @@ const state = {
   videoStates: {}, // Keyed by target id, stores { currentTime, isPlaying }
   pace: 1.0,
   paceAudio: 'scale', // 'scale' or 'repeat'
+  boomerangAudio: false,
 };
 
 window.framesToTime = (frames, fps) => {
@@ -41,6 +42,11 @@ window.framesToTime = (frames, fps) => {
 window.updateExcludeFrames = (val) => {
   state.excludeFrames = parseInt(val) || 0;
   render(); // Re-render to update slider labels
+};
+
+window.updateBoomerangAudio = (val) => {
+  state.boomerangAudio = !!val;
+  render();
 };
 
 window.updateCutFrames = (type, val) => {
@@ -115,7 +121,7 @@ window.renderVideoPlayer = (path, name, type = 'input', target = '') => {
       </div>
       <div class="action-bar" style="width: 100%; justify-content: flex-end;">
          ${isResult ? `
-           <button class="action-btn btn-save" onclick="window.saveResult()">Save...</button>
+           <button class="action-btn btn-save" onclick="window.useAsInput()" style="background: var(--accent); color: var(--bg-dark);">Use as Input</button><button class="action-btn btn-save" onclick="window.saveResult()">Save...</button>
            <button class="action-btn btn-discard" onclick="window.discardResult()">Discard</button>
          ` : `
            <button class="action-btn btn-discard" onclick="window.clearVideo(event, '${target}')">Clear</button>
@@ -187,11 +193,11 @@ function render() {
   // 3. Update Video Stage
   const videoStage = document.getElementById('video-workspace');
   videoStage.style.gridTemplateColumns = state.activeTab === 'compare' ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(380px, 1fr))';
-  
+
   const videoInputHTML = renderTabInputs();
-  const videoResultHTML = (state.output && state.activeTab !== 'compare') 
-                           ? window.renderVideoPlayer(state.output, state.output.split('\\').pop(), 'result') 
-                           : '';
+  const videoResultHTML = (state.output && state.activeTab !== 'compare')
+    ? window.renderVideoPlayer(state.output, state.output.split('\\').pop(), 'result')
+    : '';
   videoStage.innerHTML = videoInputHTML + videoResultHTML;
 
   // 4. Update Settings Layer
@@ -277,6 +283,12 @@ function renderTabSettings() {
                    ${!isLoaded ? 'disabled' : ''}
                    oninput="window.updateExcludeFrames(this.value)"
                    style="width: 100%; cursor: pointer; opacity: ${!isLoaded ? 0.3 : 1};" />
+            
+            <div style="display: flex; gap: 1.5rem; align-items: center; margin-top: 0.5rem;">
+               <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: ${state.boomerangAudio ? 'var(--accent)' : 'var(--text-muted)'}; font-size: 0.8rem;">
+                  <input type="checkbox" id="boomerangAudioCheck" ${state.boomerangAudio ? 'checked' : ''} onchange="window.updateBoomerangAudio(this.checked)"> Boomerang Audio (Reverse)
+               </label>
+            </div>
          </div>
          
          <button class="primary-btn" 
@@ -449,11 +461,9 @@ window.handleDrop = async (e, target) => {
 // Global Actions
 window.switchTab = (tab) => {
   state.activeTab = tab;
-  state.video1 = { path: '', name: '' };
-  state.video2 = { path: '', name: '' };
   state.output = null;
   state.logs = ['> Switched to ' + tab.toUpperCase()];
-  state.videoStates = {}; // Full reset on tab switch
+  state.videoStates = {}; 
   render();
 };
 
@@ -518,7 +528,6 @@ window.discardResult = async () => {
 
 window.startProcessing = async () => {
   state.isProcessing = true;
-  state.output = null;
   state.logs = ['> Starting FFmpeg...'];
   render();
 
@@ -529,12 +538,12 @@ window.startProcessing = async () => {
     } else if (state.activeTab === 'cut') {
       result = await ProcessCut(state.video1.path, state.cutStartFrame, state.cutEndFrame);
     } else if (state.activeTab === 'boomerang') {
-      result = await ProcessBoomerang(state.video1.path, state.excludeFrames);
+      result = await ProcessBoomerang(state.video1.path, state.excludeFrames, state.boomerangAudio);
     } else if (state.activeTab === 'pace') {
       result = await ProcessPace(state.video1.path, state.pace, state.paceAudio);
     }
 
-    state.output = result;
+    state.output = result; render();
     state.logs.push(`> Final result at ${result}`);
   } catch (err) {
     state.logs.push(`! FFmpeg error: ${err}`);
@@ -551,6 +560,19 @@ window.updatePace = (val) => {
 
 window.updatePaceAudio = (val) => {
   state.paceAudio = val;
+  render();
+};
+
+window.useAsInput = async () => {
+  if (!state.output) return;
+  const path = state.output;
+  const name = path.split('\\').pop();
+  
+  state.video1 = { path, name };
+  state.output = null; // Important: Clear output as it's now an input
+  state.logs.push(`> Result promoted to Input 1`);
+  
+  await window.probeVideo('video1');
   render();
 };
 
