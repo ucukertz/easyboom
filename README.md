@@ -1,6 +1,6 @@
 # EasyBoom
 
-EasyBoom is a high-performance local video utility designed for rapid streamlined video processing for simple operations and equipped with multi-file comparison. It provides a suite of tools for trimming, looping, speed adjustment, and side-by-side analysis, all powered by a robust backend and a modern, responsive interface.
+EasyBoom is a high-performance local video utility designed for rapid streamlined video processing for simple operations and equipped with multi-file comparison. It provides a suite of tools for trimming, looping, speed adjustment, and side-by-side analysis, all powered by a robust backend and a modern, responsive interface. Convenient tool for video editing when normal video editing software is too heavy or complicated for what you need.
 
 Built with **Go**, **Wails (WebView2)**, and **Vanilla JS/CSS**, EasyBoom bridges the gap between powerful CLI tools and an intuitive desktop experience. At its core, it leverages **FFmpeg** for state-of-the-art media processing with millisecond precision.
 
@@ -29,9 +29,10 @@ Analyze multiple versions of a shot or different assets simultaneously. The comp
 
 ## Design & Performance
 
-- **Surgical Redrawing:** The application uses a custom rendering engine that only updates changed parts of the UI. This eliminates flickering and preserves your scroll position even during intense interactions.
-- **State-Aware Playback:** Change settings, switch tabs, or update metadata without stopping your media. The app captures and restores video positions automatically to maintain your workflow.
-- **Rich Aesthetics:** A premium dark-mode interface with a focus on usability, clean typography, and responsive layouts.
+- **Quick Preview:** The application maintains a persistent, side-by-side media workspace where your source inputs and processed results are always visible at once. This integrated layout eliminates context switching and allows for instantaneous, "live" visual verification, no need to even open the processed file in another application.
+- **State-Aware Playback:** Change settings, switch tabs, or update metadata without pausing or restarting your media. The app automatically captures and restores high-precision video timestamps and playback status to maintain a continuous, uninterrupted workflow.
+- **Quick Delete:** Delete unsatisfactory processed file with a single click.
+- **Streamlined Aesthetics:** A premium dark-mode interface with a focus on usability, clean typography, and responsive layouts.
 
 ---
 
