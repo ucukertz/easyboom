@@ -9,7 +9,9 @@ Built with **Go**, **Wails (WebView2)**, and **Vanilla JS/CSS**, EasyBoom bridge
 ## Key Features
 
 ### Boomerang Generator
-Create seamless video loops with ease. The generator includes a specialized "Exclude Frozen Frames" feature to trim leading or trailing static frames, ensuring your loops are fluid and high-impact.
+Create seamless video loops with ease. The generator includes:
+- **Exclude Frozen Frames:** Trim leading or trailing static frames for fluid, high-impact loops.
+- **Audio Mirroring:** Synchronizes audio in a forward-backward loop (1-2-2-1) to perfectly match the boomerang motion.
 
 ### Precision Cutting
 A dedicated tool for extracting clips with frame-accurate boundaries. Features native millisecond conversion and real-time boundary previews using time-synced metadata.
@@ -24,6 +26,9 @@ Control your media's tempo from **0.1x (Slow-Motion)** to **5.0x (Hyperlapse)**.
 
 ### 6X Media Comparison
 Analyze multiple versions of a shot or different assets simultaneously. The comparison grid supports up to 6 slots for videos or images in a high-density, widescreen-optimized layout.
+
+### Chained Workflows
+Iterate faster by instantly promoting any processed result back to the primary input slot. The "Use as Input" feature allows you to chain multiple effects (e.g., Boomerang -> Pace -> Cut) without ever leaving the application or manually re-loading files.
 
 ---
 
