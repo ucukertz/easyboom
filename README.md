@@ -38,9 +38,19 @@ Iterate faster by instantly promoting any processed result back to the primary i
 ## Design & Performance
 
 - **Quick Preview:** The application maintains a persistent, side-by-side media workspace where your source inputs and processed results are always visible at once. This integrated layout eliminates context switching and allows for instantaneous, "live" visual verification, no need to even open the processed file in another application.
+- **Unified Logic Flow:** From extraction to comparison, EasyBoom is a self-contained environment. You can process, verify, and re-process (using Chained Workflows) entirely within the same window, replacing the need for multiple heavy editing tools for simple tasks.
 - **State-Aware Playback:** Change settings, switch tabs, or update metadata without pausing or restarting your media. The app automatically captures and restores high-precision video timestamps and playback status to maintain a continuous, uninterrupted workflow.
 - **Quick Delete:** Delete unsatisfactory processed file with a single click.
 - **Streamlined Aesthetics:** A premium dark-mode interface with a focus on usability, clean typography, and responsive layouts.
+
+---
+
+## Technical Constraints & Memory
+
+EasyBoom uses a **Sandboxed Round-Trip** pattern for file handling to ensure cross-environment reliability. This involves loading the binary data of dropped files into memory before persisting them to a temporary location.
+
+> [!IMPORTANT]
+> **Memory Usage:** Because files are loaded entirely into system RAM during the drop process, working with exceptionally large files (e.g., **2GB or larger**) may lead to significant memory spikes or application instability depending on your system's available resources. For extremely high-bitrate or long-duration 4K raw files, it is recommended to use dedicated NLE software.
 
 ---
 
