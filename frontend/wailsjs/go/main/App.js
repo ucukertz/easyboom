@@ -6,6 +6,10 @@ export function DeleteFile(arg1) {
   return window['go']['main']['App']['DeleteFile'](arg1);
 }
 
+export function ExtractFrame(arg1, arg2) {
+  return window['go']['main']['App']['ExtractFrame'](arg1, arg2);
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }

@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function DeleteFile(arg1:string):Promise<void>;
 
+export function ExtractFrame(arg1:string,arg2:number):Promise<string>;
+
 export function Greet(arg1:string):Promise<string>;
 
 export function ProbeVideo(arg1:string):Promise<main.VideoMetadata>;

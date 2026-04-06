@@ -390,3 +390,34 @@ func (a *App) ProbeVideo(path string) (VideoMetadata, error) {
 		Duration: dur,
 	}, nil
 }
+
+// ExtractFrame captures a single high-quality frame from the video
+func (a *App) ExtractFrame(input string, frame int) (string, error) {
+	// Create output path in the output directory
+	cwd, _ := os.Getwd()
+	outputDir := filepath.Join(cwd, "output")
+	_ = os.MkdirAll(outputDir, 0755)
+	
+	timestamp := time.Now().Format("20060102_150405")
+	output := filepath.Join(outputDir, fmt.Sprintf("frame_%d_%s.png", frame, timestamp))
+	
+	meta, err := a.ProbeVideo(input)
+	if err != nil {
+		return "", err
+	}
+	
+	// Fast seek to just before the target frame, then select the exact frame
+	// Lossless(ish) PNG output
+	timestampSec := float64(frame) / meta.FPS
+	
+	args := []string{
+		"-ss", fmt.Sprintf("%.6f", timestampSec),
+		"-i", input,
+		"-frames:v", "1",
+		"-q:v", "1", // Highest quality PNG
+		"-y", output,
+	}
+	
+	err = a.executeFFmpeg(args)
+	return output, err
+}

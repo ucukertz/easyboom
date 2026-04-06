@@ -1,5 +1,5 @@
 import './style.css';
-import { ProcessJoin, ProcessCut, ProcessBoomerang, ProcessPace, ProbeVideo, SelectFile, DeleteFile, SaveFileAs, SaveTemp } from '../wailsjs/go/main/App';
+import { ProcessJoin, ProcessCut, ProcessBoomerang, ProcessPace, ProbeVideo, SelectFile, DeleteFile, SaveFileAs, SaveTemp, ExtractFrame } from '../wailsjs/go/main/App';
 import * as runtime from '../wailsjs/runtime';
 
 // THE IMMOVABLE SHIELD: Block all browser-level navigation globally
@@ -20,7 +20,7 @@ const state = {
   output: null,
   isDragging: false,
   excludeFrames: 0,
-  compareMedia: Array(6).fill(null).map(() => ({ path: '', name: '' })),
+  compareMedia: Array(10).fill(null).map(() => ({ path: '', name: '' })),
   videoStates: {}, // Keyed by target id, stores { currentTime, isPlaying }
   pace: 1.0,
   paceAudio: 'scale', // 'scale' or 'repeat'
@@ -167,7 +167,8 @@ function render() {
         <button class="tab-btn" onclick="window.switchTab('cut')">Cut</button>
         <button class="tab-btn" onclick="window.switchTab('join')">Join</button>
         <button class="tab-btn" onclick="window.switchTab('pace')">Pace</button>
-        <button class="tab-btn" onclick="window.switchTab('compare')">Compare (6X)</button>
+        <button class="tab-btn" onclick="window.switchTab('extract')">Extract</button>
+        <button class="tab-btn" onclick="window.switchTab('compare')">Compare</button>
       </header>
       <main class="content">
         <div id="video-workspace" style="display: grid; gap: 1.5rem; align-items: start; margin-bottom: 2rem;"></div>
@@ -253,7 +254,7 @@ function renderTabInputs() {
     `;
   }
 
-  const iconMap = { 'boomerang': 'B', 'cut': 'C', 'pace': 'P' };
+  const iconMap = { 'boomerang': 'B', 'cut': 'C', 'pace': 'P', 'extract': 'F' };
   const icon = iconMap[state.activeTab] || '+';
   return `
     ${state.video1.path ?
@@ -296,6 +297,28 @@ function renderTabSettings() {
                  style="min-width: 200px; padding: 1.2rem;"
                  ${canProcess() ? '' : 'disabled'}>
            ${state.isProcessing ? 'Processing...' : 'Run Boomerang'}
+         </button>
+      </div>
+    `;
+  }
+
+  if (state.activeTab === 'extract') {
+    const meta = state.video1Meta;
+    return `
+      <div class="settings-card" style="background: var(--bg-card); padding: 1.5rem; border-radius: 0.8rem; border: 1px solid var(--border); display: flex; align-items: flex-end; gap: 2rem; width: 100%; box-sizing: border-box;">
+         <div style="flex: 1; display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+               <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Capture Frame</label>
+               <span style="font-size: 1rem; color: var(--accent); font-family: monospace; font-weight: bold; background: var(--bg-dark); padding: 0.2rem 0.6rem; border-radius: 4px;">Time: ${state.videoStates['v-video1'] ? window.framesToTime(Math.floor(state.videoStates['v-video1'].currentTime * meta.fps), meta.fps) : '00:00:00.000'}</span>
+            </div>
+            <div style="color: var(--text-muted); font-size: 0.75rem;">Seek the video to the desired frame and click "Extract Current Frame".</div>
+         </div>
+         
+         <button class="primary-btn" 
+                 onclick="window.startProcessing()" 
+                 style="min-width: 200px; padding: 1.2rem;"
+                 ${isLoaded ? '' : 'disabled'}>
+            ${state.isProcessing ? 'Capturing...' : 'Extract Current Frame'}
          </button>
       </div>
     `;
@@ -398,7 +421,7 @@ function renderTabSettings() {
   if (state.activeTab === 'compare') {
     return `
       <div class="settings-card" style="background: var(--bg-card); padding: 1rem 1.5rem; border-radius: 0.8rem; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box;">
-         <div style="color: var(--text-muted); font-size: 0.8rem; font-weight: bold; text-transform: uppercase;">Compare View: Up to 6 slots</div>
+         <div style="color: var(--text-muted); font-size: 0.8rem; font-weight: bold; text-transform: uppercase;">Compare View</div>
          <button class="action-btn btn-discard" onclick="window.clearAllCompare()">Clear All Slots</button>
       </div>
     `;
@@ -496,7 +519,7 @@ window.clearVideo = (e, target) => {
 };
 
 window.clearAllCompare = () => {
-  state.compareMedia = Array(6).fill(null).map(() => ({ path: '', name: '' }));
+  state.compareMedia = Array(10).fill(null).map(() => ({ path: '', name: '' }));
   render();
 };
 
@@ -541,6 +564,10 @@ window.startProcessing = async () => {
       result = await ProcessBoomerang(state.video1.path, state.excludeFrames, state.boomerangAudio);
     } else if (state.activeTab === 'pace') {
       result = await ProcessPace(state.video1.path, state.pace, state.paceAudio);
+    } else if (state.activeTab === 'extract') {
+      const videoEl = document.getElementById('v-video1');
+      const frameIndex = videoEl ? Math.floor(videoEl.currentTime * state.video1Meta.fps) : 0;
+      result = await ExtractFrame(state.video1.path, frameIndex);
     }
 
     state.output = result; render();
