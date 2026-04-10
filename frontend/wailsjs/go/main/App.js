@@ -18,8 +18,8 @@ export function ProbeVideo(arg1) {
   return window['go']['main']['App']['ProbeVideo'](arg1);
 }
 
-export function ProcessBoomerang(arg1, arg2, arg3) {
-  return window['go']['main']['App']['ProcessBoomerang'](arg1, arg2, arg3);
+export function ProcessBoomerang(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ProcessBoomerang'](arg1, arg2, arg3, arg4);
 }
 
 export function ProcessCut(arg1, arg2, arg3) {

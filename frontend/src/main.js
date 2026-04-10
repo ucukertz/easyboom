@@ -20,6 +20,7 @@ const state = {
   output: null,
   isDragging: false,
   excludeFrames: 0,
+  excludeStart: 0,
   compareMedia: Array(10).fill(null).map(() => ({ path: '', name: '' })),
   videoStates: {}, // Keyed by target id, stores { currentTime, isPlaying }
   pace: 1.0,
@@ -42,6 +43,10 @@ window.framesToTime = (frames, fps) => {
 window.updateExcludeFrames = (val) => {
   state.excludeFrames = parseInt(val) || 0;
   render(); // Re-render to update slider labels
+};
+window.updateExcludeStart = (val) => {
+  state.excludeStart = parseInt(val) || 0;
+  render();
 };
 
 window.updateBoomerangAudio = (val) => {
@@ -97,8 +102,8 @@ window.probeVideo = async (target) => {
 
 window.renderVideoPlayer = (path, name, type = 'input', target = '') => {
   const isResult = type === 'result';
-  const trimInfo = isResult && state.activeTab === 'boomerang' && state.excludeFrames > 0
-    ? `<span style="font-size: 0.7rem; color: var(--text-muted); margin-left: 0.5rem;">[ -${state.excludeFrames} f ]</span>`
+  const trimInfo = isResult && state.activeTab === 'boomerang' && (state.excludeFrames > 0 || state.excludeStart > 0)
+    ? `<span style="font-size: 0.7rem; color: var(--text-muted); margin-left: 0.5rem;">[ -${state.excludeStart}f | -${state.excludeFrames}f ]</span>`
     : '';
   const headerText = isResult ? `Success! Output Ready ${trimInfo}` : `Input: ${target.toUpperCase().replace('VIDEO', 'Video ')}`;
   const fileName = name || (path ? path.split('\\').pop() : '');
@@ -274,16 +279,33 @@ function renderTabSettings() {
     return `
       <div class="settings-card" style="background: var(--bg-card); padding: 1.5rem; border-radius: 0.8rem; border: 1px solid var(--border); display: flex; align-items: flex-end; gap: 2rem; width: 100%; box-sizing: border-box;">
          <div style="flex: 1; display: flex; flex-direction: column; gap: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-               <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Boomerang Trim: Exclude Frozen Frames</label>
-               <span style="font-size: 1rem; color: var(--accent); font-family: monospace; font-weight: bold; background: var(--bg-dark); padding: 0.2rem 0.6rem; border-radius: 4px;">${state.excludeFrames} frames</span>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+               <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                     <label style="font-size: 0.7rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Trim START</label>
+                     <span style="font-size: 0.8rem; color: var(--accent); font-family: monospace; font-weight: bold;">${state.excludeStart} frames</span>
+                  </div>
+                  <input type="range" 
+                         value="${state.excludeStart}" 
+                         min="0" max="60" 
+                         ${!isLoaded ? 'disabled' : ''}
+                         oninput="window.updateExcludeStart(this.value)"
+                         style="width: 100%; cursor: pointer; opacity: ${!isLoaded ? 0.3 : 1};" />
+               </div>
+
+               <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                     <label style="font-size: 0.7rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Trim END</label>
+                     <span style="font-size: 0.8rem; color: var(--accent); font-family: monospace; font-weight: bold;">${state.excludeFrames} frames</span>
+                  </div>
+                  <input type="range" 
+                         value="${state.excludeFrames}" 
+                         min="0" max="60" 
+                         ${!isLoaded ? 'disabled' : ''}
+                         oninput="window.updateExcludeFrames(this.value)"
+                         style="width: 100%; cursor: pointer; opacity: ${!isLoaded ? 0.3 : 1};" />
+               </div>
             </div>
-            <input type="range" 
-                   value="${state.excludeFrames}" 
-                   min="0" max="60" 
-                   ${!isLoaded ? 'disabled' : ''}
-                   oninput="window.updateExcludeFrames(this.value)"
-                   style="width: 100%; cursor: pointer; opacity: ${!isLoaded ? 0.3 : 1};" />
             
             <div style="display: flex; gap: 1.5rem; align-items: center; margin-top: 0.5rem;">
                <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: ${state.boomerangAudio ? 'var(--accent)' : 'var(--text-muted)'}; font-size: 0.8rem;">
@@ -561,7 +583,7 @@ window.startProcessing = async () => {
     } else if (state.activeTab === 'cut') {
       result = await ProcessCut(state.video1.path, state.cutStartFrame, state.cutEndFrame);
     } else if (state.activeTab === 'boomerang') {
-      result = await ProcessBoomerang(state.video1.path, state.excludeFrames, state.boomerangAudio);
+      result = await ProcessBoomerang(state.video1.path, state.excludeStart, state.excludeFrames, state.boomerangAudio);
     } else if (state.activeTab === 'pace') {
       result = await ProcessPace(state.video1.path, state.pace, state.paceAudio);
     } else if (state.activeTab === 'extract') {

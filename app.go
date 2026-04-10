@@ -3,14 +3,14 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 	"strconv"
 	"strings"
-	"encoding/json"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -143,9 +143,9 @@ func (a *App) DeleteFile(path string) error {
 func (a *App) SaveFileAs(sourcePath string) (string, error) {
 	ext := filepath.Ext(sourcePath)
 	filename := filepath.Base(sourcePath)
-	
+
 	target, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-		Title: "Save Video As",
+		Title:           "Save Video As",
 		DefaultFilename: filename,
 		Filters: []runtime.FileFilter{
 			{DisplayName: "Video Files", Pattern: "*" + ext},
@@ -164,10 +164,10 @@ func (a *App) SaveFileAs(sourcePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Remove original
 	_ = os.Remove(sourcePath)
-	
+
 	return target, nil
 }
 
@@ -206,18 +206,18 @@ func (a *App) ProcessJoin(video1, video2 string) (string, error) {
 // ProcessCut trims a video with frame-accurate precision
 func (a *App) ProcessCut(input string, startFrame, endFrame int) (string, error) {
 	output := a.getOutputPath("cut")
-	
+
 	// We need the FPS to convert frames back to times for container-level trimming
 	meta, err := a.ProbeVideo(input)
 	if err != nil {
 		return "", err
 	}
-	
+
 	startTime := float64(startFrame) / meta.FPS
 	endTime := float64(endFrame) / meta.FPS
-	
+
 	args := []string{
-		"-ss", fmt.Sprintf("%.6f", startTime), 
+		"-ss", fmt.Sprintf("%.6f", startTime),
 		"-i", input,
 		"-t", fmt.Sprintf("%.6f", endTime-startTime),
 		"-c:v", "libx264",
@@ -225,36 +225,41 @@ func (a *App) ProcessCut(input string, startFrame, endFrame int) (string, error)
 		"-preset", "ultrafast",
 		"-y", output,
 	}
-	
+
 	err = a.executeFFmpeg(args)
 	return output, err
 }
 
 // ProcessBoomerang creates a forward-backward loop (1-2-2-1 visually and optionally 1-2-2-1 audio)
-func (a *App) ProcessBoomerang(input string, exclude int, boomerangAudio bool) (string, error) {
+func (a *App) ProcessBoomerang(input string, excludeStart, excludeEnd int, boomerangAudio bool) (string, error) {
 	output := a.getOutputPath("boomerang")
-	
+
 	var filter string
 	meta, _ := a.ProbeVideo(input)
-	
+
 	// We MUST ensure we have a valid frames/duration before building filters
-	if meta.Frames <= 0 { 
+	if meta.Frames <= 0 {
 		meta.Frames = 100 // Fallback
 	}
 
-	trimmedFrames := meta.Frames - exclude
-	if trimmedFrames < 1 { trimmedFrames = 1 }
-	
+	trimmedFrames := meta.Frames - excludeStart - excludeEnd
+	if trimmedFrames < 1 {
+		trimmedFrames = 1
+	}
+
 	if boomerangAudio {
-		excludeSec := float64(exclude) / meta.FPS
-		durationSec := meta.Duration - excludeSec
-		if durationSec < 0 { durationSec = 0 }
-		
-		// V: Split -> Second half reverse -> Join
-		// A: Split -> Second half reverse -> Join
-		filter = fmt.Sprintf("[0:v]trim=end_frame=%d,setpts=PTS-STARTPTS,split[v1][v2];[v2]reverse,setpts=PTS-STARTPTS[v2r];[v1][v2r]concat=n=2:v=1:a=0[v];[0:a]atrim=end=%.6f,asetpts=PTS-STARTPTS,asplit[a1][a2];[a2]areverse,asetpts=PTS-STARTPTS[a2r];[a1][a2r]concat=n=2:v=0:a=1[a]", trimmedFrames, durationSec)
+		excludeStartSec := float64(excludeStart) / meta.FPS
+		excludeEndSec := float64(excludeEnd) / meta.FPS
+		durationSec := meta.Duration - excludeStartSec - excludeEndSec
+		if durationSec < 0 {
+			durationSec = 0
+		}
+
+		// V: Trim Start/End -> Split -> Second half reverse -> Join
+		// A: Trim Start/End -> Split -> Second half reverse -> Join
+		filter = fmt.Sprintf("[0:v]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS,split[v1][v2];[v2]reverse,setpts=PTS-STARTPTS[v2r];[v1][v2r]concat=n=2:v=1:a=0[v];[0:a]atrim=start=%.6f:end=%.6f,asetpts=PTS-STARTPTS,asplit[a1][a2];[a2]areverse,asetpts=PTS-STARTPTS[a2r];[a1][a2r]concat=n=2:v=0:a=1[a]", excludeStart, meta.Frames-excludeEnd, excludeStartSec, meta.Duration-excludeEndSec)
 	} else {
-		filter = fmt.Sprintf("[0:v]trim=end_frame=%d,setpts=PTS-STARTPTS,split[v1][v2];[v2]reverse,setpts=PTS-STARTPTS[v2r];[v1][v2r]concat=n=2:v=1:a=0[v];[0:a]asplit[a1][a2];[a1][a2]concat=n=2:v=0:a=1[a]", trimmedFrames)
+		filter = fmt.Sprintf("[0:v]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS,split[v1][v2];[v2]reverse,setpts=PTS-STARTPTS[v2r];[v1][v2r]concat=n=2:v=1:a=0[v];[0:a]asplit[a1][a2];[a1][a2]concat=n=2:v=0:a=1[a]", excludeStart, meta.Frames-excludeEnd)
 	}
 
 	args := []string{
@@ -263,6 +268,7 @@ func (a *App) ProcessBoomerang(input string, exclude int, boomerangAudio bool) (
 		"-map", "[v]",
 		"-map", "[a]",
 		"-c:a", "aac",
+		"-frames:v", fmt.Sprintf("%d", trimmedFrames*2-1),
 		"-y", output,
 	}
 	err := a.executeFFmpeg(args)
@@ -272,20 +278,20 @@ func (a *App) ProcessBoomerang(input string, exclude int, boomerangAudio bool) (
 // ProcessPace changes the speed of a video and handles audio accordingly
 func (a *App) ProcessPace(input string, speed float64, audioMode string) (string, error) {
 	output := a.getOutputPath("pace")
-	
+
 	// Probe for duration to handle "repeat" mode correctly
 	meta, err := a.ProbeVideo(input)
 	if err != nil {
 		return "", err
 	}
-	
+
 	newDuration := meta.Duration / speed
-	
+
 	var filter string
 	if audioMode == "scale" {
 		// Video speed
 		vFilter := fmt.Sprintf("[0:v]setpts=(1/%.6f)*PTS[v]", speed)
-		
+
 		// Audio tempo (atempo only 0.5-2.0, so needs chaining)
 		aFilter := "[0:a]"
 		remaining := speed
@@ -298,7 +304,7 @@ func (a *App) ProcessPace(input string, speed float64, audioMode string) (string
 			remaining /= 2.0
 		}
 		aFilter += fmt.Sprintf("atempo=%.6f[a]", remaining)
-		
+
 		filter = vFilter + ";" + aFilter
 	} else {
 		// "repeat" mode: loop audio then trim to video duration
@@ -340,7 +346,7 @@ func (a *App) ProbeVideo(path string) (VideoMetadata, error) {
 		"-of", "json",
 		path,
 	}
-	
+
 	ffprobePath, err := a.getFFprobePath()
 	if err != nil {
 		return VideoMetadata{}, err
@@ -350,7 +356,7 @@ func (a *App) ProbeVideo(path string) (VideoMetadata, error) {
 	if err != nil {
 		return VideoMetadata{}, fmt.Errorf("probe failed: %v: %s", err, string(out))
 	}
-	
+
 	var res struct {
 		Streams []struct {
 			NbFrames   string `json:"nb_frames"`
@@ -358,15 +364,15 @@ func (a *App) ProbeVideo(path string) (VideoMetadata, error) {
 			Duration   string `json:"duration"`
 		} `json:"streams"`
 	}
-	
+
 	if err := json.Unmarshal(out, &res); err != nil {
 		return VideoMetadata{}, fmt.Errorf("unmarshal failed: %v", err)
 	}
-	
+
 	if len(res.Streams) == 0 {
 		return VideoMetadata{}, fmt.Errorf("no video stream found")
 	}
-	
+
 	// Parse FPS (e.g. "30/1" or "24000/1001")
 	fpsParts := strings.Split(res.Streams[0].RFrameRate, "/")
 	fps := 30.0
@@ -383,7 +389,7 @@ func (a *App) ProbeVideo(path string) (VideoMetadata, error) {
 	if frames == 0 {
 		frames = int(dur * fps)
 	}
-	
+
 	return VideoMetadata{
 		Frames:   frames,
 		FPS:      fps,
@@ -397,19 +403,19 @@ func (a *App) ExtractFrame(input string, frame int) (string, error) {
 	cwd, _ := os.Getwd()
 	outputDir := filepath.Join(cwd, "output")
 	_ = os.MkdirAll(outputDir, 0755)
-	
+
 	timestamp := time.Now().Format("20060102_150405")
 	output := filepath.Join(outputDir, fmt.Sprintf("frame_%d_%s.png", frame, timestamp))
-	
+
 	meta, err := a.ProbeVideo(input)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Fast seek to just before the target frame, then select the exact frame
 	// Lossless(ish) PNG output
 	timestampSec := float64(frame) / meta.FPS
-	
+
 	args := []string{
 		"-ss", fmt.Sprintf("%.6f", timestampSec),
 		"-i", input,
@@ -417,7 +423,7 @@ func (a *App) ExtractFrame(input string, frame int) (string, error) {
 		"-q:v", "1", // Highest quality PNG
 		"-y", output,
 	}
-	
+
 	err = a.executeFFmpeg(args)
 	return output, err
 }

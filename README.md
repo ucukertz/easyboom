@@ -10,7 +10,7 @@ Built with **Go**, **Wails (WebView2)**, and **Vanilla JS/CSS**, EasyBoom bridge
 
 ### Boomerang Generator
 Create seamless video loops with ease. The generator includes:
-- **Exclude Frozen Frames:** Trim leading or trailing static frames for fluid, high-impact loops.
+- **Dual-Ended Trimming:** Independently exclude unwanted frames from the beginning or the end for a flawlessly fluid cycle.
 - **Audio Mirroring:** Synchronizes audio in a forward-backward loop (1-2-2-1) to perfectly match the boomerang motion or simply repeat the audio.
 
 ### Precision Cutting
@@ -59,8 +59,8 @@ EasyBoom uses a **Sandboxed Round-Trip** pattern for file handling to ensure cro
 EasyBoom is designed to be cross-platform but is specifically optimized for Windows environments.
 
 ### Requirements
-- **Go 1.22.3** (or later)
-- **Node.js v20.12.2** (recommended, managed via NVM)
+- **Go 1.26.1** (or later)
+- **Node.js v24.14.1**
 - **FFmpeg & FFprobe**: The app looks for these in `bin/` or your system PATH.
 
 ### Building from Source
