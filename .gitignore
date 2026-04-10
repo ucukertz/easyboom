@@ -1,6 +1,7 @@
-build/bin
+build
 node_modules
 frontend/dist
 docs/
 bin/
 output/
+release/

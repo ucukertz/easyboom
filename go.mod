@@ -1,6 +1,6 @@
 module easyboom
 
-go 1.22.3
+go 1.26.1
 
 require github.com/wailsapp/wails/v2 v2.12.0
 
