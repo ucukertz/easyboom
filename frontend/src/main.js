@@ -177,7 +177,7 @@ function render() {
         <div class="app-title-bar">
           <img src="./src/assets/images/logo-universal.png" class="app-logo" alt="EasyBoom Logo">
           <span class="app-title">EasyBoom</span>
-          <span class="app-version">v1.0.0</span>
+          <span class="app-version">v1.0.1</span>
         </div>
         <nav class="tabs">
           <button class="tab-btn" onclick="window.switchTab('boomerang')">Boomerang</button>
