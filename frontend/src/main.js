@@ -26,6 +26,12 @@ const state = {
   pace: 1.0,
   paceAudio: 'scale', // 'scale' or 'repeat'
   boomerangAudio: false,
+  consoleCollapsed: true,
+};
+
+window.toggleConsole = () => {
+  state.consoleCollapsed = !state.consoleCollapsed;
+  render();
 };
 
 window.framesToTime = (frames, fps) => {
@@ -167,21 +173,39 @@ function render() {
   // 1. Structural Initialization (Run once, never replace the scrolls again)
   if (!app.querySelector('.content')) {
     app.innerHTML = `
-      <header class="tabs" style="display: flex; gap: 1rem; padding: 1rem 2rem; background: var(--bg-card); border-bottom: 1px solid var(--border); -webkit-app-region: drag;">
-        <button class="tab-btn" onclick="window.switchTab('boomerang')">Boomerang</button>
-        <button class="tab-btn" onclick="window.switchTab('cut')">Cut</button>
-        <button class="tab-btn" onclick="window.switchTab('join')">Join</button>
-        <button class="tab-btn" onclick="window.switchTab('pace')">Pace</button>
-        <button class="tab-btn" onclick="window.switchTab('extract')">Extract</button>
-        <button class="tab-btn" onclick="window.switchTab('compare')">Compare</button>
+      <header class="app-header">
+        <div class="app-title-bar">
+          <img src="./src/assets/images/logo-universal.png" class="app-logo" alt="EasyBoom Logo">
+          <span class="app-title">EasyBoom</span>
+          <span class="app-version">v1.0.0</span>
+        </div>
+        <nav class="tabs">
+          <button class="tab-btn" onclick="window.switchTab('boomerang')">Boomerang</button>
+          <button class="tab-btn" onclick="window.switchTab('cut')">Cut</button>
+          <button class="tab-btn" onclick="window.switchTab('join')">Join</button>
+          <button class="tab-btn" onclick="window.switchTab('pace')">Pace</button>
+          <button class="tab-btn" onclick="window.switchTab('extract')">Extract</button>
+          <button class="tab-btn" onclick="window.switchTab('compare')">Compare</button>
+        </nav>
       </header>
       <main class="content">
         <div id="video-workspace" style="display: grid; gap: 1.5rem; align-items: start; margin-bottom: 2rem;"></div>
         <div id="settings-workspace" style="width: 100%; margin-bottom: 2rem;"></div>
-        <div class="footer-controls" style="border-top: 1px solid var(--border); padding-top: 1rem;">
+      </main>
+      <footer class="console-drawer" id="console-drawer">
+        <div class="console-header" onclick="window.toggleConsole()">
+          <div class="console-title">
+            <span class="status-indicator" id="status-indicator"></span>
+            <span>Console Log</span>
+          </div>
+          <button class="console-toggle-btn" id="console-toggle-btn">
+            <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+          </button>
+        </div>
+        <div class="console-body">
           <div class="terminal" id="terminal"></div>
         </div>
-      </main>
+      </footer>
     `;
   }
 
@@ -210,6 +234,27 @@ function render() {
   document.getElementById('settings-workspace').innerHTML = renderTabSettings();
 
   // 5. Update Logs (Surgical terminal update)
+  const consoleDrawer = document.getElementById('console-drawer');
+  if (consoleDrawer) {
+    if (state.consoleCollapsed) {
+      consoleDrawer.classList.remove('expanded');
+    } else {
+      consoleDrawer.classList.add('expanded');
+    }
+  }
+
+  const indicator = document.getElementById('status-indicator');
+  if (indicator) {
+    indicator.className = 'status-indicator'; // Reset
+    if (state.isProcessing) {
+      indicator.classList.add('processing');
+    } else if (state.output) {
+      indicator.classList.add('success');
+    } else if (state.logs.some(l => l.includes('error') || l.includes('failed') || l.startsWith('!'))) {
+      indicator.classList.add('error');
+    }
+  }
+
   const terminal = document.getElementById('terminal');
   if (terminal) {
     const logHTML = state.logs.length === 0 ? '> Ready.' : state.logs.map(log => `<div>${log}</div>`).join('');
