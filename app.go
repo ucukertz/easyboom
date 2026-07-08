@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,6 +38,8 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	runtime.WindowMaximise(ctx)
+
+
 }
 
 // Greet returns a greeting for the given name
@@ -134,6 +137,23 @@ func (a *App) SelectFile() string {
 	return selection
 }
 
+// CopyToTemp copies a file from sourcePath to a temp file and returns the temp path
+func (a *App) CopyToTemp(sourcePath, filename string) (string, error) {
+	tempPath := filepath.Join(os.TempDir(), "easyboom_"+filename)
+	src, err := os.Open(sourcePath)
+	if err != nil {
+		return "", err
+	}
+	defer src.Close()
+	dst, err := os.Create(tempPath)
+	if err != nil {
+		return "", err
+	}
+	defer dst.Close()
+	_, err = io.Copy(dst, src)
+	return tempPath, err
+}
+
 // DeleteFile removes a file from disk
 func (a *App) DeleteFile(path string) error {
 	return os.Remove(path)
@@ -171,12 +191,7 @@ func (a *App) SaveFileAs(sourcePath string) (string, error) {
 	return target, nil
 }
 
-// SaveTemp saves byte data to a temporary file and returns the path
-func (a *App) SaveTemp(data []byte, filename string) (string, error) {
-	tempPath := filepath.Join(os.TempDir(), "easyboom_"+filename)
-	err := os.WriteFile(tempPath, data, 0644)
-	return tempPath, err
-}
+
 
 // getOutputPath returns a timestamped path in the output directory
 func (a *App) getOutputPath(prefix string) string {

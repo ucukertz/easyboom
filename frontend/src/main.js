@@ -1,5 +1,5 @@
 import './style.css';
-import { ProcessJoin, ProcessCut, ProcessBoomerang, ProcessPace, ProbeVideo, SelectFile, DeleteFile, SaveFileAs, SaveTemp, ExtractFrame } from '../wailsjs/go/main/App';
+import { ProcessJoin, ProcessCut, ProcessBoomerang, ProcessPace, ProbeVideo, SelectFile, DeleteFile, SaveFileAs, ExtractFrame, CopyToTemp } from '../wailsjs/go/main/App';
 import * as runtime from '../wailsjs/runtime';
 
 // THE IMMOVABLE SHIELD: Block all browser-level navigation globally
@@ -122,7 +122,7 @@ window.renderVideoPlayer = (path, name, type = 'input', target = '') => {
 
   return `
     <div class="${isResult ? 'result-box' : 'dropzone has-video'}" 
-         ${!isResult ? `ondrop="window.handleDrop(event, '${target}')" ondragover="window.handleDragOver(event)"` : ''}>
+         ${!isResult ? `ondrop="window.handleDrop(event, '${target}')" ondragover="window.handleDragOver(event, '${target}')"` : ''}>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; width: 100%;">
          <h3 style="color: var(--accent); margin:0; font-size: 0.8rem;">${headerText}</h3>
          <span style="font-size: 0.7rem; color: var(--text-muted); text-align: right; margin-left: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${fileName}</span>
@@ -279,7 +279,7 @@ function renderTabInputs() {
         return window.renderVideoPlayer(media.path, media.name, 'input', target);
       }
       return `
-        <div class="dropzone" ondrop="window.handleDrop(event, '${target}')" ondragover="window.handleDragOver(event)" onclick="window.pickFile('${target}')">
+        <div class="dropzone" ondrop="window.handleDrop(event, '${target}')" ondragover="window.handleDragOver(event, '${target}')" onclick="window.pickFile('${target}')">
           <span class="dropzone-icon">+</span>
           <span style="color: var(--text-muted); font-size: 0.7rem;">Slot ${index + 1}</span>
         </div>
@@ -290,13 +290,13 @@ function renderTabInputs() {
   if (state.activeTab === 'join') {
     return `
       ${state.video1.path ? window.renderVideoPlayer(state.video1.path, state.video1.name, 'input', 'video1') : `
-        <div class="dropzone" ondrop="window.handleDrop(event, 'video1')" ondragover="window.handleDragOver(event)" onclick="window.pickFile('video1')">
+        <div class="dropzone" ondrop="window.handleDrop(event, 'video1')" ondragover="window.handleDragOver(event, 'video1')" onclick="window.pickFile('video1')">
           <span class="dropzone-icon">1</span>
           <span style="color: var(--accent); font-weight: 700;">${file1Name}</span>
         </div>
       `}
       ${state.video2.path ? window.renderVideoPlayer(state.video2.path, state.video2.name, 'input', 'video2') : `
-        <div class="dropzone" ondrop="window.handleDrop(event, 'video2')" ondragover="window.handleDragOver(event)" onclick="window.pickFile('video2')">
+        <div class="dropzone" ondrop="window.handleDrop(event, 'video2')" ondragover="window.handleDragOver(event, 'video2')" onclick="window.pickFile('video2')">
           <span class="dropzone-icon">2</span>
           <span style="color: var(--accent); font-weight: 700;">${file2Name}</span>
         </div>
@@ -309,7 +309,7 @@ function renderTabInputs() {
   return `
     ${state.video1.path ?
       window.renderVideoPlayer(state.video1.path, state.video1.name, 'input', 'video1') : `
-      <div class="dropzone" ondrop="window.handleDrop(event, 'video1')" ondragover="window.handleDragOver(event)" onclick="window.pickFile('video1')">
+      <div class="dropzone" ondrop="window.handleDrop(event, 'video1')" ondragover="window.handleDragOver(event, 'video1')" onclick="window.pickFile('video1')">
         <span class="dropzone-icon">${icon}</span>
         <span style="color: var(--accent); font-weight: 700;">${file1Name}</span>
       </div>
@@ -504,48 +504,16 @@ function canProcess() {
   return !!state.video1.path;
 }
 
-// Logic to process dropped files like "savenum"
-window.handleDragOver = (e) => {
+let _pendingDropTarget = '';
+
+// Logic to process dropped files
+window.handleDragOver = (e, target) => {
   e.preventDefault();
-  e.stopPropagation();
+  _pendingDropTarget = target;
 };
 
-window.handleDrop = async (e, target) => {
+window.handleDrop = (e) => {
   e.preventDefault();
-  e.stopPropagation();
-
-  const file = e.dataTransfer.files[0];
-  if (!file) return;
-
-  state.logs.push(`> Reading file: ${file.name}...`);
-  render();
-
-  const reader = new FileReader();
-  reader.onload = async (event) => {
-    const arrayBuffer = event.target.result;
-    const bytes = new Uint8Array(arrayBuffer);
-
-    try {
-      // Send raw bytes to Go backend
-      const tempPath = await SaveTemp(Array.from(bytes), file.name);
-      if (target.includes('compareMedia')) {
-        const index = parseInt(target.match(/\[(\d+)\]/)[1]);
-        state.compareMedia[index] = { path: tempPath, name: file.name };
-      } else {
-        state[target] = { path: tempPath, name: file.name };
-      }
-      state.logs.push(`> Loaded into temp storage: ${file.name}`);
-
-      // Render IMMEDIATELY after file is saved
-      render();
-
-      // Then probe in background if it's a video
-      await window.probeVideo(target);
-    } catch (err) {
-      state.logs.push(`! Error loading data: ${err}`);
-    }
-  };
-  reader.readAsArrayBuffer(file);
 };
 
 // Global Actions
@@ -683,3 +651,32 @@ runtime.EventsOn("ffmpeg-log", (line) => {
     terminal.scrollTop = terminal.scrollHeight;
   }
 });
+
+// Register file drop handler via Wails runtime (gives native file paths on WebView2)
+runtime.OnFileDrop(async (x, y, paths) => {
+  if (!paths || paths.length === 0 || !_pendingDropTarget) return;
+
+  const sourcePath = paths[0];
+  const name = sourcePath.split('\\').pop();
+  const target = _pendingDropTarget;
+
+  state.logs.push(`> File dropped: ${name}`);
+  render();
+
+  try {
+    const tempPath = await CopyToTemp(sourcePath, name);
+
+    if (target.includes('compareMedia')) {
+      const index = parseInt(target.match(/\[(\d+)\]/)[1]);
+      state.compareMedia[index] = { path: tempPath, name };
+    } else {
+      state[target] = { path: tempPath, name };
+    }
+
+    state.logs.push(`> Loaded: ${name} via native copy`);
+    render();
+    await window.probeVideo(target);
+  } catch (err) {
+    state.logs.push(`! Error loading file: ${err}`);
+  }
+}, false); // useDropTarget=false — we track target via _pendingDropTarget
