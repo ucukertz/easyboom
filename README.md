@@ -27,6 +27,18 @@ Control your media's tempo from **0.1x (Slow-Motion)** to **5.0x (Hyperlapse)**.
 ### Still Frame Extraction
 Extract high-quality, lossless images directly from your video. Seek to the exact frame you need and capture a standalone screenshot instantly.
 
+### Color Stabilization
+Normalize color shifts across an entire video using the **Reinhard et al. (2001)** color transfer algorithm. Frame 0 serves as the color reference — every subsequent frame is statistically remapped to match its luminance and chrominance distribution.
+
+- **Dark Protect Slider (0–1):** Prevents very dark pixels from being incorrectly mapped. Because near-black pixels have extremely low variance, the Reinhard formula can amplify tiny noise into visible color flashes (typically green, blue, or red artifacts). The slider sets a CIELAB L* threshold — pixels darker than the value are copied unchanged from the source. Default is `0.3`; increase toward `0.5` for low-light footage or if you see primary color flashes.
+- **Workers:** Controls parallel processing. Higher values use more RAM since all video frames are held in memory simultaneously.
+
+> [!NOTE]
+> **Memory Warning:** The entire video is decoded into RAM as raw pixel data before processing. A 10-second 1080p clip at 30fps requires ~1.8 GB. Long or high-resolution videos may cause instability — consider trimming first.
+
+> [!IMPORTANT]
+> **Not a color grader.** This tool matches the statistical distribution of frame 0 onto every other frame. It does not perform perceptual matching, object-aware correction, or temporal smoothing. Results depend heavily on how representative frame 0 is of the desired look.
+
 ### Media Comparison
 Analyze multiple versions of a shot or different assets simultaneously. The high-density comparison grid supports up to **10 concurrent slots** for videos or images in a widescreen-optimized layout.
 
@@ -42,15 +54,6 @@ Iterate faster by instantly promoting any processed result back to the primary i
 - **State-Aware Playback:** Change settings, switch tabs, or update metadata without pausing or restarting your media. The app automatically captures and restores high-precision video timestamps and playback status to maintain a continuous, uninterrupted workflow.
 - **Quick Delete:** Delete unsatisfactory processed file with a single click.
 - **Streamlined Aesthetics:** A premium dark-mode interface with a focus on usability, clean typography, and responsive layouts.
-
----
-
-## Technical Constraints & Memory
-
-EasyBoom uses a **Sandboxed Round-Trip** pattern for file handling to ensure cross-environment reliability. This involves loading the binary data of dropped files into memory before persisting them to a temporary location.
-
-> [!IMPORTANT]
-> **Memory Usage:** Because files are loaded entirely into system RAM during the drop process, working with exceptionally large files (e.g., **2GB or larger**) may lead to significant memory spikes or application instability depending on your system's available resources. For extremely high-bitrate or long-duration 4K raw files, it is recommended to use dedicated NLE software.
 
 ---
 

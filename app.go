@@ -196,17 +196,18 @@ func (a *App) SaveFileAs(sourcePath string) (string, error) {
 
 
 // getOutputPath returns a timestamped path in the output directory
-func (a *App) getOutputPath(prefix string) string {
+func (a *App) getOutputPath(prefix, inputPath string) string {
 	cwd, _ := os.Getwd()
 	outputDir := filepath.Join(cwd, "output")
 	_ = os.MkdirAll(outputDir, 0755)
+	inputName := strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))
 	timestamp := time.Now().Format("20060102_150405")
-	return filepath.Join(outputDir, fmt.Sprintf("%s_%s.mp4", prefix, timestamp))
+	return filepath.Join(outputDir, fmt.Sprintf("%s_%s_%s.mp4", prefix, timestamp, inputName))
 }
 
 // ProcessJoin joins two videos into one
 func (a *App) ProcessJoin(video1, video2 string) (string, error) {
-	output := a.getOutputPath("join")
+	output := a.getOutputPath("join", video1)
 	// Use concat filter
 	args := []string{
 		"-i", video1,
@@ -222,7 +223,7 @@ func (a *App) ProcessJoin(video1, video2 string) (string, error) {
 
 // ProcessCut trims a video with frame-accurate precision
 func (a *App) ProcessCut(input string, startFrame, endFrame int) (string, error) {
-	output := a.getOutputPath("cut")
+	output := a.getOutputPath("cut", input)
 
 	// We need the FPS to convert frames back to times for container-level trimming
 	meta, err := a.ProbeVideo(input)
@@ -249,7 +250,7 @@ func (a *App) ProcessCut(input string, startFrame, endFrame int) (string, error)
 
 // ProcessBoomerang creates a forward-backward loop (1-2-2-1 visually and optionally 1-2-2-1 audio)
 func (a *App) ProcessBoomerang(input string, excludeStart, excludeEnd int, boomerangAudio bool) (string, error) {
-	output := a.getOutputPath("boomerang")
+	output := a.getOutputPath("boomerang", input)
 
 	var filter string
 	meta, _ := a.ProbeVideo(input)
@@ -294,7 +295,7 @@ func (a *App) ProcessBoomerang(input string, excludeStart, excludeEnd int, boome
 
 // ProcessPace changes the speed of a video and handles audio accordingly
 func (a *App) ProcessPace(input string, speed float64, audioMode string) (string, error) {
-	output := a.getOutputPath("pace")
+	output := a.getOutputPath("pace", input)
 
 	// Probe for duration to handle "repeat" mode correctly
 	meta, err := a.ProbeVideo(input)
@@ -355,9 +356,9 @@ func (a *App) ProcessPace(input string, speed float64, audioMode string) (string
 }
 
 // ProcessStabilize color-matches every frame to frame 0 via Reinhard transfer
-func (a *App) ProcessStabilize(input string, workers int) (string, error) {
-	output := a.getOutputPath("stabilize")
-	err := colormatch.ProcessVideo(input, output, workers, func(msg string) {
+func (a *App) ProcessStabilize(input string, workers int, darkThreshold float64) (string, error) {
+	output := a.getOutputPath("stabilize", input)
+	err := colormatch.ProcessVideo(input, output, workers, darkThreshold, func(msg string) {
 		runtime.EventsEmit(a.ctx, "ffmpeg-log", msg)
 	})
 	return output, err
@@ -430,8 +431,9 @@ func (a *App) ExtractFrame(input string, frame int) (string, error) {
 	outputDir := filepath.Join(cwd, "output")
 	_ = os.MkdirAll(outputDir, 0755)
 
+	inputName := strings.TrimSuffix(filepath.Base(input), filepath.Ext(input))
 	timestamp := time.Now().Format("20060102_150405")
-	output := filepath.Join(outputDir, fmt.Sprintf("frame_%d_%s.png", frame, timestamp))
+	output := filepath.Join(outputDir, fmt.Sprintf("frame_%s_%d_%s.png", timestamp, frame, inputName))
 
 	meta, err := a.ProbeVideo(input)
 	if err != nil {

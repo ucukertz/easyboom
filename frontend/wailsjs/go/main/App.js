@@ -38,6 +38,10 @@ export function ProcessPace(arg1, arg2, arg3) {
   return window['go']['main']['App']['ProcessPace'](arg1, arg2, arg3);
 }
 
+export function ProcessStabilize(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ProcessStabilize'](arg1, arg2, arg3);
+}
+
 export function SaveFileAs(arg1) {
   return window['go']['main']['App']['SaveFileAs'](arg1);
 }

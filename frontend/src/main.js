@@ -28,6 +28,7 @@ const state = {
   boomerangAudio: false,
   consoleCollapsed: true,
   stabilizeWorkers: 1,
+  stabilizeThreshold: 0.3,
 };
 
 window.toggleConsole = () => {
@@ -497,13 +498,23 @@ function renderTabSettings() {
          <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
             <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Color Stabilization</div>
             <div style="font-size: 0.7rem; color: var(--text-muted);">Reinhard transfer — frame 0 is the color reference for every subsequent frame.</div>
-            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem;">
-               <label style="font-size: 0.7rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Workers:</label>
-               <select onchange="window.updateStabilizeWorkers(this.value)"
-                       style="background: var(--bg-dark); color: var(--accent); border: 1px solid var(--border); border-radius: 4px; padding: 0.3rem 0.5rem; font-size: 0.8rem; cursor: pointer;">
-                  ${workerOpts}
-               </select>
-               <span style="font-size: 0.65rem; color: var(--text-muted);">⚠ higher values use more RAM</span>
+            <div style="display: flex; align-items: center; gap: 1.5rem; margin-top: 0.3rem;">
+               <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <label style="font-size: 0.7rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Workers:</label>
+                  <select onchange="window.updateStabilizeWorkers(this.value)"
+                          style="background: var(--bg-dark); color: var(--accent); border: 1px solid var(--border); border-radius: 4px; padding: 0.3rem 0.5rem; font-size: 0.8rem; cursor: pointer;">
+                     ${workerOpts}
+                  </select>
+               </div>
+               <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+                  <label style="font-size: 0.7rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase; white-space: nowrap;">Dark Protect:</label>
+                  <input type="range"
+                         min="0" max="1" step="0.005"
+                         value="${state.stabilizeThreshold}"
+                         oninput="window.updateStabilizeThreshold(this.value)"
+                         style="flex: 1; cursor: pointer;" />
+                  <span style="font-size: 0.75rem; color: var(--accent); font-family: monospace; font-weight: bold; min-width: 2.5rem; text-align: right;">${state.stabilizeThreshold.toFixed(3)}</span>
+               </div>
             </div>
          </div>
          <button class="primary-btn" 
@@ -635,7 +646,7 @@ window.startProcessing = async () => {
       const frameIndex = videoEl ? Math.floor(videoEl.currentTime * state.video1Meta.fps) : 0;
       result = await ExtractFrame(state.video1.path, frameIndex);
     } else if (state.activeTab === 'stabilize') {
-      result = await ProcessStabilize(state.video1.path, state.stabilizeWorkers);
+      result = await ProcessStabilize(state.video1.path, state.stabilizeWorkers, state.stabilizeThreshold);
     }
 
     state.output = result; render();
@@ -660,6 +671,11 @@ window.updatePaceAudio = (val) => {
 
 window.updateStabilizeWorkers = (val) => {
   state.stabilizeWorkers = parseInt(val) || 1;
+  render();
+};
+
+window.updateStabilizeThreshold = (val) => {
+  state.stabilizeThreshold = parseFloat(val) || 0;
   render();
 };
 

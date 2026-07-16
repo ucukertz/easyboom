@@ -12,7 +12,7 @@ import (
 
 // ProcessVideo stabilizes color across every frame using frame 0 as reference.
 // workers controls parallelism — 1 = sequential, N = parallel with N goroutines.
-func ProcessVideo(input, output string, workers int, onProgress func(string)) error {
+func ProcessVideo(input, output string, workers int, darkThreshold float64, onProgress func(string)) error {
 	if workers < 1 {
 		workers = 1
 	}
@@ -56,7 +56,7 @@ func ProcessVideo(input, output string, workers int, onProgress func(string)) er
 				if onProgress != nil {
 					onProgress(fmt.Sprintf("Processing frame %d/%d", idx+1, total))
 				}
-				results[idx] = TransferColorLab(frames[idx], ref, width, height)
+				results[idx] = TransferColorLab(frames[idx], ref, width, height, darkThreshold)
 			}
 		}()
 	}

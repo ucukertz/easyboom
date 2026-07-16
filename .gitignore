@@ -5,3 +5,6 @@ docs/
 bin/
 output/
 release/
+
+*.exe
+*.md5
