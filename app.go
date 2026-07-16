@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+
+	"easyboom/colormatch"
 )
 
 // App struct
@@ -349,6 +351,15 @@ func (a *App) ProcessPace(input string, speed float64, audioMode string) (string
 	}
 
 	err = a.executeFFmpeg(args)
+	return output, err
+}
+
+// ProcessStabilize color-matches every frame to frame 0 via Reinhard transfer
+func (a *App) ProcessStabilize(input string, workers int) (string, error) {
+	output := a.getOutputPath("stabilize")
+	err := colormatch.ProcessVideo(input, output, workers, func(msg string) {
+		runtime.EventsEmit(a.ctx, "ffmpeg-log", msg)
+	})
 	return output, err
 }
 

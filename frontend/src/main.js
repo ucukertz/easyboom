@@ -1,5 +1,5 @@
 import './style.css';
-import { ProcessJoin, ProcessCut, ProcessBoomerang, ProcessPace, ProbeVideo, SelectFile, DeleteFile, SaveFileAs, ExtractFrame, CopyToTemp } from '../wailsjs/go/main/App';
+import { ProcessJoin, ProcessCut, ProcessBoomerang, ProcessPace, ProbeVideo, SelectFile, DeleteFile, SaveFileAs, ExtractFrame, CopyToTemp, ProcessStabilize } from '../wailsjs/go/main/App';
 import * as runtime from '../wailsjs/runtime';
 
 // THE IMMOVABLE SHIELD: Block all browser-level navigation globally
@@ -27,6 +27,7 @@ const state = {
   paceAudio: 'scale', // 'scale' or 'repeat'
   boomerangAudio: false,
   consoleCollapsed: true,
+  stabilizeWorkers: 1,
 };
 
 window.toggleConsole = () => {
@@ -185,6 +186,7 @@ function render() {
           <button class="tab-btn" onclick="window.switchTab('join')">Join</button>
           <button class="tab-btn" onclick="window.switchTab('pace')">Pace</button>
           <button class="tab-btn" onclick="window.switchTab('extract')">Extract</button>
+          <button class="tab-btn" onclick="window.switchTab('stabilize')">Stabilize</button>
           <button class="tab-btn" onclick="window.switchTab('compare')">Compare</button>
         </nav>
       </header>
@@ -304,7 +306,7 @@ function renderTabInputs() {
     `;
   }
 
-  const iconMap = { 'boomerang': 'B', 'cut': 'C', 'pace': 'P', 'extract': 'F' };
+  const iconMap = { 'boomerang': 'B', 'cut': 'C', 'pace': 'P', 'extract': 'F', 'stabilize': 'S' };
   const icon = iconMap[state.activeTab] || '+';
   return `
     ${state.video1.path ?
@@ -485,6 +487,35 @@ function renderTabSettings() {
     `;
   }
 
+  if (state.activeTab === 'stabilize') {
+    const maxWorkers = navigator.hardwareConcurrency || 4;
+    const workerOpts = Array.from({length: maxWorkers}, (_, i) =>
+      `<option value="${i+1}" ${state.stabilizeWorkers === i+1 ? 'selected' : ''}>${i+1}</option>`
+    ).join('');
+    return `
+      <div class="settings-card" style="background: var(--bg-card); padding: 1.5rem; border-radius: 0.8rem; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box;">
+         <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
+            <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Color Stabilization</div>
+            <div style="font-size: 0.7rem; color: var(--text-muted);">Reinhard transfer — frame 0 is the color reference for every subsequent frame.</div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem;">
+               <label style="font-size: 0.7rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Workers:</label>
+               <select onchange="window.updateStabilizeWorkers(this.value)"
+                       style="background: var(--bg-dark); color: var(--accent); border: 1px solid var(--border); border-radius: 4px; padding: 0.3rem 0.5rem; font-size: 0.8rem; cursor: pointer;">
+                  ${workerOpts}
+               </select>
+               <span style="font-size: 0.65rem; color: var(--text-muted);">⚠ higher values use more RAM</span>
+            </div>
+         </div>
+         <button class="primary-btn" 
+                 onclick="window.startProcessing()" 
+                 style="min-width: 200px; padding: 1.2rem;"
+                 ${canProcess() ? '' : 'disabled'}>
+            ${state.isProcessing ? 'Processing...' : 'Run Stabilize'}
+         </button>
+      </div>
+    `;
+  }
+
   if (state.activeTab === 'compare') {
     return `
       <div class="settings-card" style="background: var(--bg-card); padding: 1rem 1.5rem; border-radius: 0.8rem; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box;">
@@ -603,6 +634,8 @@ window.startProcessing = async () => {
       const videoEl = document.getElementById('v-video1');
       const frameIndex = videoEl ? Math.floor(videoEl.currentTime * state.video1Meta.fps) : 0;
       result = await ExtractFrame(state.video1.path, frameIndex);
+    } else if (state.activeTab === 'stabilize') {
+      result = await ProcessStabilize(state.video1.path, state.stabilizeWorkers);
     }
 
     state.output = result; render();
@@ -622,6 +655,11 @@ window.updatePace = (val) => {
 
 window.updatePaceAudio = (val) => {
   state.paceAudio = val;
+  render();
+};
+
+window.updateStabilizeWorkers = (val) => {
+  state.stabilizeWorkers = parseInt(val) || 1;
   render();
 };
 
