@@ -70,7 +70,7 @@ func ProcessVideo(input, output string, workers int, darkThreshold float64, onPr
 	if onProgress != nil {
 		onProgress("Writing output...")
 	}
-	return writeFrames(output, results, width, height, fps)
+	return writeFrames(output, input, results, width, height, fps)
 }
 
 func readFrames(input string, frameSize int) ([][]byte, error) {
@@ -100,16 +100,22 @@ func readFrames(input string, frameSize int) ([][]byte, error) {
 	return frames, nil
 }
 
-func writeFrames(output string, frames [][]byte, width, height int, fps float64) error {
-	cmd := exec.Command("ffmpeg", "-hide_banner", "-loglevel", "error",
+func writeFrames(output, inputPath string, frames [][]byte, width, height int, fps float64) error {
+	args := []string{
+		"-hide_banner", "-loglevel", "error",
 		"-f", "rawvideo", "-pix_fmt", "bgr24",
 		"-s", fmt.Sprintf("%dx%d", width, height),
 		"-r", fmt.Sprintf("%.3f", fps),
 		"-i", "pipe:0",
+		"-i", inputPath,
+		"-map", "0:v", "-map", "1:a?",
 		"-c:v", "libx264", "-preset", "ultrafast",
 		"-pix_fmt", "yuv420p",
+		"-c:a", "copy",
+		"-shortest",
 		"-y", output,
-	)
+	}
+	cmd := exec.Command("ffmpeg", args...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return err
