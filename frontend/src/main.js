@@ -26,6 +26,7 @@ const state = {
   pace: 1.0,
   paceAudio: 'scale', // 'scale' or 'repeat'
   boomerangAudio: false,
+  boomerangReverseOnly: false,
   consoleCollapsed: true,
   stabilizeWorkers: 1,
   stabilizeThreshold: 0.3,
@@ -62,6 +63,11 @@ window.updateBoomerangAudio = (val) => {
   render();
 };
 
+window.updateBoomerangReverseOnly = (val) => {
+  state.boomerangReverseOnly = !!val;
+  render();
+};
+
 window.updateCutFrames = (type, val) => {
   const v = parseInt(val) || 0;
   if (type === 'start') {
@@ -76,7 +82,17 @@ window.fetchFromSource = (type) => {
   const videoEl = document.getElementById('v-video1');
   if (!videoEl || !state.video1Meta.fps) return;
   const frame = Math.floor(videoEl.currentTime * state.video1Meta.fps);
-  window.updateCutFrames(type, frame);
+  if (type === 'start') {
+    window.updateCutFrames('start', frame);
+  } else if (type === 'end') {
+    window.updateCutFrames('end', frame);
+  } else if (type === 'boomerang-start') {
+    state.excludeStart = frame;
+    render();
+  } else if (type === 'boomerang-end') {
+    state.excludeFrames = frame;
+    render();
+  }
 };
 
 window.probeVideo = async (target) => {
@@ -108,6 +124,8 @@ window.probeVideo = async (target) => {
     if (target === 'video1' && state.activeTab !== 'compare') {
       state.cutEndFrame = meta.frames || 0;
       state.cutStartFrame = 0;
+      state.excludeStart = 0;
+      state.excludeFrames = meta.frames || 0;
     }
     render();
   } catch (err) {
@@ -186,7 +204,7 @@ function render() {
         <div class="app-title-bar">
           <img src="/logo-universal.png" class="app-logo" alt="EasyBoom Logo">
           <span class="app-title">EasyBoom</span>
-          <span class="app-version">v1.0.1</span>
+          <span class="app-version">v1.0.2</span>
         </div>
         <nav class="tabs">
           <button class="tab-btn" onclick="window.switchTab('boomerang')">Boomerang</button>
@@ -331,40 +349,54 @@ function renderTabSettings() {
   const isLoaded = !!state.video1.path;
 
   if (state.activeTab === 'boomerang') {
+    const meta = state.video1Meta;
     return `
       <div class="settings-card" style="background: var(--bg-card); padding: 1.5rem; border-radius: 0.8rem; border: 1px solid var(--border); display: flex; align-items: flex-end; gap: 2rem; width: 100%; box-sizing: border-box;">
          <div style="flex: 1; display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                <div>
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                     <label style="font-size: 0.7rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Trim START</label>
-                     <span style="font-size: 0.8rem; color: var(--accent); font-family: monospace; font-weight: bold;">${state.excludeStart} frames</span>
+                     <label style="font-size: 0.7rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Trim START: Frame ${state.excludeStart}</label>
+                     <span style="font-size: 0.7rem; color: var(--accent); font-family: monospace;">${window.framesToTime(state.excludeStart, meta.fps)}</span>
                   </div>
                   <input type="range" 
                          value="${state.excludeStart}" 
-                         min="0" max="60" 
+                         min="0" max="${meta.frames || 60}" 
                          ${!isLoaded ? 'disabled' : ''}
                          oninput="window.updateExcludeStart(this.value)"
-                         style="width: 100%; cursor: pointer; opacity: ${!isLoaded ? 0.3 : 1};" />
+                         style="width: 100%; cursor: pointer;" />
+                  <button onclick="window.fetchFromSource('boomerang-start')"
+                          ${!isLoaded ? 'disabled' : ''}
+                          style="margin-top: 0.4rem; width: 100%; padding: 0.3rem; font-size: 0.7rem; background: var(--bg-dark); color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; text-transform: uppercase; font-weight: bold;">
+                    Fetch from source
+                  </button>
                </div>
 
                <div>
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                     <label style="font-size: 0.7rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Trim END</label>
-                     <span style="font-size: 0.8rem; color: var(--accent); font-family: monospace; font-weight: bold;">${state.excludeFrames} frames</span>
+                     <label style="font-size: 0.7rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Trim END: Frame ${state.excludeFrames}</label>
+                     <span style="font-size: 0.7rem; color: var(--accent); font-family: monospace;">${window.framesToTime(state.excludeFrames, meta.fps)}</span>
                   </div>
                   <input type="range" 
                          value="${state.excludeFrames}" 
-                         min="0" max="60" 
+                         min="0" max="${meta.frames || 60}" 
                          ${!isLoaded ? 'disabled' : ''}
                          oninput="window.updateExcludeFrames(this.value)"
-                         style="width: 100%; cursor: pointer; opacity: ${!isLoaded ? 0.3 : 1};" />
+                         style="width: 100%; cursor: pointer;" />
+                  <button onclick="window.fetchFromSource('boomerang-end')"
+                          ${!isLoaded ? 'disabled' : ''}
+                          style="margin-top: 0.4rem; width: 100%; padding: 0.3rem; font-size: 0.7rem; background: var(--bg-dark); color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; text-transform: uppercase; font-weight: bold;">
+                    Fetch from source
+                  </button>
                </div>
             </div>
             
             <div style="display: flex; gap: 1.5rem; align-items: center; margin-top: 0.5rem;">
                <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: ${state.boomerangAudio ? 'var(--accent)' : 'var(--text-muted)'}; font-size: 0.8rem;">
-                  <input type="checkbox" id="boomerangAudioCheck" ${state.boomerangAudio ? 'checked' : ''} onchange="window.updateBoomerangAudio(this.checked)"> Boomerang Audio (Reverse)
+                  <input type="checkbox" id="boomerangAudioCheck" ${state.boomerangAudio ? 'checked' : ''} onchange="window.updateBoomerangAudio(this.checked)"> Flip Audio
+               </label>
+               <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: ${state.boomerangReverseOnly ? 'var(--accent)' : 'var(--text-muted)'}; font-size: 0.8rem;">
+                  <input type="checkbox" id="boomerangReverseOnlyCheck" ${state.boomerangReverseOnly ? 'checked' : ''} onchange="window.updateBoomerangReverseOnly(this.checked)"> Only Reverse
                </label>
             </div>
          </div>
@@ -655,7 +687,7 @@ window.startProcessing = async () => {
     } else if (state.activeTab === 'cut') {
       result = await ProcessCut(state.video1.path, state.cutStartFrame, state.cutEndFrame);
     } else if (state.activeTab === 'boomerang') {
-      result = await ProcessBoomerang(state.video1.path, state.excludeStart, state.excludeFrames, state.boomerangAudio);
+      result = await ProcessBoomerang(state.video1.path, state.excludeStart, (state.video1Meta.frames || 0) - state.excludeFrames, state.boomerangAudio, state.boomerangReverseOnly);
     } else if (state.activeTab === 'pace') {
       result = await ProcessPace(state.video1.path, state.pace, state.paceAudio);
     } else if (state.activeTab === 'extract') {

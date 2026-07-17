@@ -10,8 +10,10 @@ Built with **Go**, **Wails (WebView2)**, and **Vanilla JS/CSS**, EasyBoom bridge
 
 ### Boomerang Generator
 Create seamless video loops with ease. The generator includes:
-- **Dual-Ended Trimming:** Independently exclude unwanted frames from the beginning or the end for a flawlessly fluid cycle.
-- **Audio Mirroring:** Synchronizes audio in a forward-backward loop (1-2-2-1) to perfectly match the boomerang motion or simply repeat the audio.
+- **Dual-Ended Trimming:** Independently exclude unwanted frames from the beginning or the end for a flawlessly fluid cycle. Sliders dynamically scale to the loaded video's total frame count with real-time time display.
+- **Fetch from Source:** Grab the current playback frame directly from the video player and set it as a trim boundary — no manual scrubbing needed.
+- **Audio Mirroring:** Flip audio to play in reverse alongside the boomerang loop, or keep it playing forward normally.
+- **Only Reverse:** Output only the reversed portion of the trimmed segment instead of the full forward-backward loop. Useful for creating reversed clips without the repeat.
 
 ### Precision Cutting
 A dedicated tool for extracting clips with frame-accurate boundaries. Features native millisecond conversion and real-time boundary previews using time-synced metadata.
@@ -25,7 +27,7 @@ Control your media's tempo from **0.1x (Slow-Motion)** to **5.0x (Hyperlapse)**.
 - **Loop Original:** Maintains the original audio's pace by looping or trimming the stream to fit the new video duration perfectly.
 
 ### Still Frame Extraction
-Extract high-quality, lossless images directly from your video. Seek to the exact frame you need and capture a standalone screenshot instantly.
+Extract high-quality, lossless images directly from your video. Seek to the exact frame you need and capture a standalone screenshot instantly. Frame indices are automatically clamped to valid bounds.
 
 ### Color Stabilization
 Normalize color shifts across an entire video using the **Reinhard et al. (2001)** color transfer algorithm. Frame 0 serves as the color reference — every subsequent frame is statistically remapped to match its luminance and chrominance distribution.

@@ -249,7 +249,7 @@ func (a *App) ProcessCut(input string, startFrame, endFrame int) (string, error)
 }
 
 // ProcessBoomerang creates a forward-backward loop (1-2-2-1 visually and optionally 1-2-2-1 audio)
-func (a *App) ProcessBoomerang(input string, excludeStart, excludeEnd int, boomerangAudio bool) (string, error) {
+func (a *App) ProcessBoomerang(input string, excludeStart, excludeEnd int, boomerangAudio bool, reverseOnly bool) (string, error) {
 	output := a.getOutputPath("boomerang", input)
 
 	var filter string
@@ -265,7 +265,16 @@ func (a *App) ProcessBoomerang(input string, excludeStart, excludeEnd int, boome
 		trimmedFrames = 1
 	}
 
-	if boomerangAudio {
+	if reverseOnly {
+		// Only output the reversed portion
+		if boomerangAudio {
+			excludeStartSec := float64(excludeStart) / meta.FPS
+			excludeEndSec := float64(excludeEnd) / meta.FPS
+			filter = fmt.Sprintf("[0:v]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS,reverse,setpts=PTS-STARTPTS[v];[0:a]atrim=start=%.6f:end=%.6f,asetpts=PTS-STARTPTS,areverse,asetpts=PTS-STARTPTS[a]", excludeStart, meta.Frames-excludeEnd, excludeStartSec, meta.Duration-excludeEndSec)
+		} else {
+			filter = fmt.Sprintf("[0:v]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS,reverse,setpts=PTS-STARTPTS[v];[0:a]asplit[a1][a2];[a1][a2]concat=n=2:v=0:a=1[a]", excludeStart, meta.Frames-excludeEnd)
+		}
+	} else if boomerangAudio {
 		excludeStartSec := float64(excludeStart) / meta.FPS
 		excludeEndSec := float64(excludeEnd) / meta.FPS
 		durationSec := meta.Duration - excludeStartSec - excludeEndSec
@@ -277,7 +286,12 @@ func (a *App) ProcessBoomerang(input string, excludeStart, excludeEnd int, boome
 		// A: Trim Start/End -> Split -> Second half reverse -> Join
 		filter = fmt.Sprintf("[0:v]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS,split[v1][v2];[v2]reverse,setpts=PTS-STARTPTS[v2r];[v1][v2r]concat=n=2:v=1:a=0[v];[0:a]atrim=start=%.6f:end=%.6f,asetpts=PTS-STARTPTS,asplit[a1][a2];[a2]areverse,asetpts=PTS-STARTPTS[a2r];[a1][a2r]concat=n=2:v=0:a=1[a]", excludeStart, meta.Frames-excludeEnd, excludeStartSec, meta.Duration-excludeEndSec)
 	} else {
-		filter = fmt.Sprintf("[0:v]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS,split[v1][v2];[v2]reverse,setpts=PTS-STARTPTS[v2r];[v1][v2r]concat=n=2:v=1:a=0[v];[0:a]asplit[a1][a2];[a1][a2]concat=n=2:v=0:a=1[a]", excludeStart, meta.Frames-excludeEnd)
+		filter = fmt.Sprintf("[0:v]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS,split[v1][v2];[v2]reverse,setpts=PTS-STARTPTS[v2r];[v1][v2r]concat=n=2:v=1:a=0[v];[0:a]atrim=start=%.6f:end=%.6f,asetpts=PTS-STARTPTS,asplit[a1][a2];[a1][a2]concat=n=2:v=0:a=1[a]", excludeStart, meta.Frames-excludeEnd, float64(excludeStart)/meta.FPS, meta.Duration-float64(excludeEnd)/meta.FPS)
+	}
+
+	frameCount := trimmedFrames
+	if !reverseOnly {
+		frameCount = trimmedFrames*2 - 1
 	}
 
 	args := []string{
@@ -286,7 +300,7 @@ func (a *App) ProcessBoomerang(input string, excludeStart, excludeEnd int, boome
 		"-map", "[v]",
 		"-map", "[a]",
 		"-c:a", "aac",
-		"-frames:v", fmt.Sprintf("%d", trimmedFrames*2-1),
+		"-frames:v", fmt.Sprintf("%d", frameCount),
 		"-y", output,
 	}
 	err := a.executeFFmpeg(args)
@@ -438,6 +452,13 @@ func (a *App) ExtractFrame(input string, frame int) (string, error) {
 	meta, err := a.ProbeVideo(input)
 	if err != nil {
 		return "", err
+	}
+
+	if frame >= meta.Frames {
+		frame = meta.Frames - 1
+	}
+	if frame < 0 {
+		frame = 0
 	}
 
 	// Fast seek to just before the target frame, then select the exact frame
