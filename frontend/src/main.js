@@ -65,11 +65,18 @@ window.updateBoomerangAudio = (val) => {
 window.updateCutFrames = (type, val) => {
   const v = parseInt(val) || 0;
   if (type === 'start') {
-    state.cutStartFrame = Math.min(v, state.cutEndFrame - 1);
+    state.cutStartFrame = Math.min(v, state.cutEndFrame);
   } else {
-    state.cutEndFrame = Math.max(v, state.cutStartFrame + 1);
+    state.cutEndFrame = Math.max(v, state.cutStartFrame);
   }
   render();
+};
+
+window.fetchFromSource = (type) => {
+  const videoEl = document.getElementById('v-video1');
+  if (!videoEl || !state.video1Meta.fps) return;
+  const frame = Math.floor(videoEl.currentTime * state.video1Meta.fps);
+  window.updateCutFrames(type, frame);
 };
 
 window.probeVideo = async (target) => {
@@ -412,6 +419,11 @@ function renderTabSettings() {
                         ${!isLoaded ? 'disabled' : ''}
                         oninput="window.updateCutFrames('start', this.value)"
                         style="width: 100%; cursor: pointer;" />
+                 <button onclick="window.fetchFromSource('start')"
+                         ${!isLoaded ? 'disabled' : ''}
+                         style="margin-top: 0.4rem; width: 100%; padding: 0.3rem; font-size: 0.7rem; background: var(--bg-dark); color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; text-transform: uppercase; font-weight: bold;">
+                   Fetch from source
+                 </button>
               </div>
               <div style="width: 100%;">
                  <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
@@ -424,6 +436,11 @@ function renderTabSettings() {
                         ${!isLoaded ? 'disabled' : ''}
                         oninput="window.updateCutFrames('end', this.value)"
                         style="width: 100%; cursor: pointer;" />
+                 <button onclick="window.fetchFromSource('end')"
+                         ${!isLoaded ? 'disabled' : ''}
+                         style="margin-top: 0.4rem; width: 100%; padding: 0.3rem; font-size: 0.7rem; background: var(--bg-dark); color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; text-transform: uppercase; font-weight: bold;">
+                   Fetch from source
+                 </button>
               </div>
             </div>
          </div>
