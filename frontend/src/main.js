@@ -177,7 +177,7 @@ function render() {
     app.innerHTML = `
       <header class="app-header">
         <div class="app-title-bar">
-          <img src="./src/assets/images/logo-universal.png" class="app-logo" alt="EasyBoom Logo">
+          <img src="/logo-universal.png" class="app-logo" alt="EasyBoom Logo">
           <span class="app-title">EasyBoom</span>
           <span class="app-version">v1.0.1</span>
         </div>
@@ -186,8 +186,8 @@ function render() {
           <button class="tab-btn" onclick="window.switchTab('cut')">Cut</button>
           <button class="tab-btn" onclick="window.switchTab('join')">Join</button>
           <button class="tab-btn" onclick="window.switchTab('pace')">Pace</button>
-          <button class="tab-btn" onclick="window.switchTab('extract')">Extract</button>
           <button class="tab-btn" onclick="window.switchTab('stabilize')">Stabilize</button>
+          <button class="tab-btn" onclick="window.switchTab('extract')">Extract</button>
           <button class="tab-btn" onclick="window.switchTab('compare')">Compare</button>
         </nav>
       </header>
